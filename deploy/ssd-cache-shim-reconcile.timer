@@ -1,0 +1,12 @@
+# Optional systemd timer for the cleanup sweep, for installs that set RECONCILE_INTERVAL_MINUTES=0.
+#   sudo cp deploy/ssd-cache-shim-reconcile.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now ssd-cache-shim-reconcile.timer
+[Unit]
+Description=Nightly cleanup sweep for the llama.cpp SSD cache shim
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS launchd job for the shim. Edit the three paths, then:
+    cp deploy/com.ssd-cache-shim.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.ssd-cache-shim.plist
+  Stop with: launchctl bootout gui/$(id -u)/com.ssd-cache-shim   (SIGTERM makes the shim flush dirty slots first)
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>              <string>com.ssd-cache-shim</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/YOU/Source/llama.cpp-ssd-cache-shim/ssd_cache_shim.py</string>
+    <string>--env</string>
+    <string>/Users/YOU/Source/llama.cpp-ssd-cache-shim/.env</string>
+  </array>
+  <key>WorkingDirectory</key>   <string>/Users/YOU/Source/llama.cpp-ssd-cache-shim</string>
+  <key>RunAtLoad</key>          <true/>
+  <key>KeepAlive</key>          <true/>
+  <key>StandardOutPath</key>    <string>/Users/YOU/Source/llama.cpp-ssd-cache-shim/logs/shim.log</string>
+  <key>StandardErrorPath</key>  <string>/Users/YOU/Source/llama.cpp-ssd-cache-shim/logs/shim.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PYTHONUNBUFFERED</key> <string>1</string>
+  </dict>
+</dict>
+</plist>

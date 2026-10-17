@@ -1,0 +1,2 @@
+# No third-party packages. The shim uses only the Python standard library (3.9 or newer).
+# This file exists so tooling that expects one (pip, CI, IDEs) finds nothing to install.

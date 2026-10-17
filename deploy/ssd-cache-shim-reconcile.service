@@ -1,0 +1,8 @@
+[Unit]
+Description=Cleanup sweep for the llama.cpp SSD cache shim
+
+[Service]
+Type=oneshot
+User=YOU
+WorkingDirectory=/home/YOU/llama.cpp-ssd-cache-shim
+ExecStart=/usr/bin/python3 /home/YOU/llama.cpp-ssd-cache-shim/ssd_cache_shim.py --env /home/YOU/llama.cpp-ssd-cache-shim/.env --reconcile

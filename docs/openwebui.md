@@ -1,0 +1,71 @@
+# Open WebUI setup
+
+Tested against Open WebUI 0.12.x. The shim works with Open WebUI out of the box through the hash fallback, but two
+headers make it exact: every chat gets its own key, and the side tasks Open WebUI fires after each reply stay off the SSD.
+
+## 1. Point the connection at the shim
+
+Admin > Settings > Connections. Edit the OpenAI-compatible connection that currently points at llama-server and change its
+URL to the shim:
+
+| Where Open WebUI runs | URL |
+| --- | --- |
+| Docker on the same machine as the shim | `http://host.docker.internal:8090/v1` |
+| Same host, no Docker | `http://localhost:8090/v1` |
+| Another machine | `http://<shim host>:8090/v1` |
+
+The API key field stays whatever llama-server expects; the shim passes `Authorization` through.
+
+## 2. Add the two headers
+
+In the same connection dialog, under Headers, add:
+
+| Header | Value |
+| --- | --- |
+| `X-OpenWebUI-Chat-Id` | `{{CHAT_ID}}` |
+| `X-OpenWebUI-Task` | `{{TASK}}` |
+
+Open WebUI expands these placeholders per request. `{{CHAT_ID}}` is the chat's database id. `{{TASK}}` is empty for a
+normal turn and set to a task name (`title_generation`, `tags_generation`, `follow_up_generation`, and so on) for the
+background calls.
+
+Alternative for the chat id only: set `ENABLE_FORWARD_USER_INFO_HEADERS=true` on the Open WebUI container. That sends
+`X-OpenWebUI-Chat-Id` on every model request along with the user headers, but it does not send a task header, so title
+and tag generation would then land in the chat's own slot and be mistaken for conversation turns. Use the per-connection
+headers.
+
+## 3. API key for the cleanup sweep
+
+Settings > Account > API keys > Create. Put the key in `.env` as `OPENWEBUI_API_KEY`, and set `OPENWEBUI_URL` to Open
+WebUI's address as seen from the shim's host (`http://localhost:3000` for the default Docker port mapping).
+
+The sweep asks `GET /api/v1/chats/{id}` for each stored chat. The key's user has to be allowed to read the chat: on a
+single-user install any key works; on a multi-user install use an admin key and make sure admins may read other users'
+chats (`ENABLE_ADMIN_CHAT_ACCESS`, on by default). If the check returns anything other than 200 or 404, the sweep stops
+without deleting, so a wrong key costs nothing but a log line.
+
+## What Open WebUI sends, and how the shim treats it
+
+| Request | Chat id header | Task header | Shim behaviour |
+| --- | --- | --- | --- |
+| A normal turn | the chat id | empty | pinned to the chat's slot; saved to SSD |
+| Title, tags, follow-up, query generation after a reply | the chat id | task name | pinned to an idle slot (preferring one not holding a conversation); never saved |
+| A subagent or internal child chat | the child chat's own id | empty | its own slot and file, independent of the parent |
+| Temporary chat (not saved by Open WebUI) | `temporary:...` | empty | pinned; never saved |
+| Channel message | `channel:...` | empty | pinned; never saved |
+| A chat whose task model is a different server | goes to that server | | the shim never sees it |
+
+If your task model is the same llama-server, each reply is followed by two or three task calls. With two slots they take
+whichever slot is not the active chat and evict whatever was there (saving it first if it was unsaved). With three or
+more slots the churn is invisible.
+
+## Workspace models
+
+A workspace model in Open WebUI sends its base model id upstream. The key is `<base model id>__<chat id>`. Switching the
+base model of a workspace model therefore starts a fresh key and llama-server prefills from scratch, which is the only
+correct behaviour since the saved state belongs to the other model.
+
+## Deleting chats
+
+Nothing happens at delete time. The next sweep (hourly by default) finds the 404 and removes the file. Deleting all chats
+removes all of that user's files on the next sweep. Archiving a chat keeps its file, since the chat still exists.

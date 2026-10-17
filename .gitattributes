@@ -1,0 +1,9 @@
+# Normalise line endings so the repo works unchanged on Windows, macOS and Linux.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.sh text eol=lf
+*.py text eol=lf
+*.plist text eol=lf
+*.service text eol=lf
+*.bin binary

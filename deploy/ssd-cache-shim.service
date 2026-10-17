@@ -1,0 +1,22 @@
+# systemd unit for the shim (Linux). Edit User and the paths, then:
+#   sudo cp deploy/ssd-cache-shim.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now ssd-cache-shim
+# If llama-server is also a unit, name it in After= / Wants= so the shim starts after it (it waits anyway).
+[Unit]
+Description=llama.cpp SSD cache shim
+After=network.target llama-server.service
+Wants=llama-server.service
+
+[Service]
+Type=simple
+User=YOU
+WorkingDirectory=/home/YOU/llama.cpp-ssd-cache-shim
+ExecStart=/usr/bin/python3 /home/YOU/llama.cpp-ssd-cache-shim/ssd_cache_shim.py --env /home/YOU/llama.cpp-ssd-cache-shim/.env
+# SIGTERM (the default KillSignal) makes the shim save dirty slots before exiting; give it time for large states.
+TimeoutStopSec=300
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
