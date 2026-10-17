@@ -23,7 +23,7 @@ worth setting deliberately.
 
 `--lora FILE --lora-init-without-apply` loads adapters at scale 0, and a request can switch them on with
 `"lora": [{"id": N, "scale": 1.0}]`. A proxy that turns a model id into that field (one model id per adapter, the way vLLM's
-`--lora-modules` works) sits well behind this shim, but one llama-server rule matters: **when the adapter set on a slot differs
+`--lora-modules` works; [llama.cpp-lora-shim](https://github.com/beaudamore/llama.cpp-lora-shim) is one) sits well behind this shim, but one llama-server rule matters: **when the adapter set on a slot differs
 from the previous request's, llama-server clears that slot's cache** (`launch_slot_with_task`, `lora_should_clear_cache`; only
 activated-LoRA adapters are exempt). A restore the shim performed a moment earlier is cleared with it, and the conversation
 re-prefills from scratch.
