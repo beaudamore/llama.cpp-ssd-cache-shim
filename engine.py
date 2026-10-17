@@ -13,6 +13,7 @@ class Engine:
         self.up = Upstream(cfg)
         self.store = Store(cfg)
         self.slots = None
+        self.reserved = set()      # slots named in MODEL_SLOTS; models not listed there never use them
         self.model_alias = None
         self.stop = threading.Event()
 
@@ -33,8 +34,19 @@ class Engine:
         n_ctx_slot = (props.get("default_generation_settings") or {}).get("n_ctx")
         stamp = hashlib.sha1(f"{props.get('model_path')}|{n_ctx_slot}|{n}".encode()).hexdigest()[:16]
         self.slots = Slots(n)
+        self.reserved = set().union(*self.cfg.model_slots.values()) if self.cfg.model_slots else set()
+        bad = sorted(i for i in self.reserved if i < 0 or i >= n)
+        if bad:
+            raise SystemExit(f"MODEL_SLOTS names slot(s) {bad} but llama-server has {n} slots (0..{n - 1})")
+        if len(self.reserved) >= n:
+            raise SystemExit("MODEL_SLOTS reserves every slot; models not listed there would never get one")
         self.store.load(stamp)
-        log("info", f"llama-server: model {self.model_alias}, {n} slots, n_ctx/slot {n_ctx_slot}, stamp {stamp}")
+        log("info", f"llama-server: model {self.model_alias}, {n} slots, n_ctx/slot {n_ctx_slot}, stamp {stamp}"
+                    + (f"; reserved {dict((m, sorted(v)) for m, v in self.cfg.model_slots.items())}" if self.reserved else ""))
+
+    def _allowed(self, model):
+        """Slots a request for this model may use: the ones reserved for it, or every slot nobody reserved."""
+        return self.cfg.model_slots.get(model) or (set(self.slots.t) - self.reserved)
 
     # -- keys ---------------------------------------------------------------------------------------------------------
     def classify(self, headers, data):
@@ -101,7 +113,7 @@ class Engine:
                 if i is not None:
                     s = sl.t[i]; s["busy"] += 1; s["last_used"] = time.time()
                     return i
-                i = sl.victim()
+                i = sl.victim(self._allowed(model))
                 if i is not None:
                     break
                 sl.cond.wait(1.0)
@@ -210,4 +222,5 @@ class Engine:
 
     def status(self):
         return {"model": self.model_alias, "slots": self.slots.snapshot(),
+                "reserved": {m: sorted(v) for m, v in self.cfg.model_slots.items()},
                 "ssd": {"files": len(self.store.files), "bytes": self.store.total_bytes(), "dir": self.store.dir}}

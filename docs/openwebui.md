@@ -62,6 +62,12 @@ If your task model is the same llama-server, each reply is followed by two or th
 whichever slot is not the active chat and evict whatever was there (saving it first if it was unsaved). With three or
 more slots the churn is invisible.
 
+## LoRA model ids
+
+If a LoRA proxy sits behind the shim, its extra model ids show up in the picker like any other, because the shim proxies
+`/v1/models` untouched. Each id is keyed separately (`<model id>__<chat id>`), and with `MODEL_SLOTS` set each adapter has its
+own slot, so a chat on an adapter id and a chat on the base id never clear each other's cache.
+
 ## Workspace models
 
 A workspace model in Open WebUI sends its base model id upstream. The key is `<base model id>__<chat id>`. Switching the

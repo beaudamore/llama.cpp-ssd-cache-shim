@@ -78,9 +78,10 @@ queued the request anyway.
 2. `engine.classify()` derives the key from the headers and body.
 3. `engine.acquire()`:
    - If the key is already on a slot: mark busy, return it.
-   - Otherwise choose a victim: an empty slot, then a slot holding a non-persistent conversation (a task), then a clean
-     slot, then the least recently used. If the victim is dirty and persistent and `SAVE_ON_EVICT` is on, save it to SSD
-     first (synchronously; the slot is idle so llama-server accepts the save).
+   - Otherwise choose a victim among the slots this model may use (`MODEL_SLOTS`: a reserved model gets only its own
+     slots, every other model gets the unreserved ones): an empty slot, then a slot holding a non-persistent conversation
+     (a task), then a clean slot, then the least recently used. If the victim is dirty and persistent and `SAVE_ON_EVICT`
+     is on, save it to SSD first (synchronously; the slot is idle so llama-server accepts the save).
    - Record the new key on the slot. If a file for it exists on SSD, restore it into the slot.
 4. `server.py` injects `id_slot` into the JSON body and streams the upstream response through unchanged.
 5. `engine.release()` clears busy, marks the slot dirty if the response was a 200, and wakes any waiter.
@@ -149,4 +150,7 @@ checkpoint right after an image chunk, so an edit landing just past an image res
   what was there, and llama-server's RAM cache may still restore it. Files on SSD are unaffected.
 - **One shim per llama-server.** The shim assumes it is the only thing deciding slot assignment. Clients that set
   `id_slot` themselves bypass it for that request.
+- **Per-request LoRA adapters.** llama-server clears a slot's cache when the adapter set on that slot changes, including a
+  state the shim just restored there. `MODEL_SLOTS` keeps each adapter's model id on its own slot so the set never
+  changes on a slot; without it, a restore followed by an adapter switch is a wasted read plus a full re-prefill.
 - **Hash collisions.** Two different conversations with identical system prompt and opening message share a key.

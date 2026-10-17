@@ -15,6 +15,8 @@ Open WebUI / Hermes / curl  -->  ssd_cache_shim.py :8090  -->  llama-server :808
 - Works with any client that speaks `/v1/chat/completions`. Open WebUI gets exact per-chat keys through two headers;
   anything else is keyed by a hash of its first turn.
 - Cleans up after itself: deletes files for chats that Open WebUI has deleted, and enforces an age and a size budget.
+- Works in front of a LoRA proxy (one model id per adapter on one engine): `MODEL_SLOTS` gives each adapter its own slot, since
+  llama-server clears a slot's cache when its adapter set changes.
 
 ## Why
 
@@ -35,6 +37,9 @@ sequential read.
    - macOS / Linux: `./start-shim.sh`
 4. Point your client at `http://<host>:8090/v1` instead of llama-server.
 5. Open WebUI users: add the two headers described in [docs/openwebui.md](docs/openwebui.md) so chats are keyed by id.
+6. Serving several model ids from one engine through a LoRA proxy? Put the shim in front of that proxy and reserve a slot per
+   adapter with `MODEL_SLOTS`. Steps in [docs/platforms.md](docs/platforms.md#chaining-with-other-proxies), the reason in
+   [docs/llama-server.md](docs/llama-server.md#lora-adapters).
 
 Stop with `stop-shim.cmd` / `./stop-shim.sh`, which saves every unsaved slot first. Always stop the shim before llama-server.
 
@@ -56,12 +61,13 @@ The same three actions are available over HTTP as `GET /shim/status`, `POST /shi
 | --- | --- |
 | [docs/architecture.md](docs/architecture.md) | How it works: keys, slot pinning, eviction, save and restore, the index, cleanup, limits |
 | [docs/configuration.md](docs/configuration.md) | Every `.env` key |
-| [docs/llama-server.md](docs/llama-server.md) | Which llama-server flags matter: `--slot-save-path`, why `--cache-ram 0`, slots, context, checkpoints |
+| [docs/llama-server.md](docs/llama-server.md) | Which llama-server flags matter: `--slot-save-path`, why `--cache-ram 0`, slots, context, checkpoints, LoRA adapters and `MODEL_SLOTS` |
 | [docs/openwebui.md](docs/openwebui.md) | Open WebUI setup: connection, headers, API key, tasks and subagents |
 | [docs/platforms.md](docs/platforms.md) | Running as a service on Windows, macOS and Linux; scheduled cleanup |
 | [docs/development.md](docs/development.md) | Code layout, testing against a scratch llama-server, extending the shim |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Symptoms, causes, fixes |
 | [docs/case-study-t600.md](docs/case-study-t600.md) | First deployment: a 9B model on a 4 GB laptop GPU, with the real file sizes and restore log |
+| [docs/case-study-m1-ultra.md](docs/case-study-m1-ultra.md) | Second deployment: a 27B model on a Mac Studio with three 256k slots and a LoRA lane; 12k-token restore in 256 ms versus a 60 s prefill |
 | [docs/future.md](docs/future.md) | Findings not yet acted on: one-shot subagent chats on SSD, Hermes sessions, metrics |
 
 ## Requirements
@@ -75,4 +81,5 @@ The same three actions are available over HTTP as `GET /shim/status`, `POST /shi
 ## Status
 
 Working and tested against llama-server with a two-slot model: eviction with save, restore on return, task requests kept
-off disk, hash-keyed clients, flush, status and reconcile. Not yet battle-tested under heavy concurrent load.
+off disk, hash-keyed clients, flush, status and reconcile. Two deployments so far, a 9B on a laptop GPU and a 27B with a LoRA
+proxy on a Mac Studio (the two case studies). Not yet battle-tested under heavy concurrent load.

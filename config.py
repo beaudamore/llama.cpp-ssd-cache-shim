@@ -28,6 +28,19 @@ def parse_bytes(s):
     unit = m.group(2).upper()
     return int(float(m.group(1)) * (1024 ** ("KMGT".index(unit) + 1) if unit else 1))
 
+def parse_model_slots(s):
+    """'model-a:2,model-b:3' -> {'model-a': {2}, 'model-b': {3}}. List a model twice to give it two slots."""
+    out = {}
+    for item in str(s).split(","):
+        item = item.strip()
+        if not item:
+            continue
+        if ":" not in item:
+            raise ValueError(f"bad MODEL_SLOTS entry (want model:slot): {item}")
+        model, slot = item.rsplit(":", 1)
+        out.setdefault(model.strip(), set()).add(int(slot))
+    return out
+
 class Cfg:
     def __init__(self, env):
         g = env.get
@@ -40,6 +53,7 @@ class Cfg:
         self.chat_id_header = g("CHAT_ID_HEADER", "X-OpenWebUI-Chat-Id").lower()
         self.task_header = g("TASK_HEADER", "X-OpenWebUI-Task").lower()
         self.persist_fallback = g("PERSIST_FALLBACK", "true").lower() == "true"
+        self.model_slots = parse_model_slots(g("MODEL_SLOTS", ""))
         self.save_on_evict = g("SAVE_ON_EVICT", "true").lower() == "true"
         self.idle_save_seconds = int(g("IDLE_SAVE_SECONDS", "120"))
         self.max_age_days = float(g("MAX_AGE_DAYS", "30"))

@@ -17,6 +17,8 @@
     <string>/Users/YOU/Source/llama.cpp-ssd-cache-shim/.env</string>
   </array>
   <key>WorkingDirectory</key>   <string>/Users/YOU/Source/llama.cpp-ssd-cache-shim</string>
+  <!-- On SIGTERM the shim writes every dirty slot to SSD before exiting; a full slot can be gigabytes, so override launchd's 20 s default. -->
+  <key>ExitTimeOut</key>        <integer>300</integer>
   <key>RunAtLoad</key>          <true/>
   <key>KeepAlive</key>          <true/>
   <key>StandardOutPath</key>    <string>/Users/YOU/Source/llama.cpp-ssd-cache-shim/logs/shim.log</string>

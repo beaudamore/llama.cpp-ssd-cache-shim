@@ -19,6 +19,22 @@ worth setting deliberately.
 | `--checkpoint-min-step N` and `--ctx-checkpoints N` | keep whatever you use for mid-prompt edits | Checkpoints are part of the slot state and travel with it into the saved file and back. They are what lets an edited turn in the middle of a long chat resume from a nearby point on recurrent and SWA models. Unrelated to the shim, but not lost by it. |
 | `--api-key KEY` | optional | If set, put the same key in the shim's `UPSTREAM_API_KEY` so the shim's own `/props` and `/slots` calls are accepted. Client requests carry their own `Authorization` header through the shim untouched. |
 
+## LoRA adapters
+
+`--lora FILE --lora-init-without-apply` loads adapters at scale 0, and a request can switch them on with
+`"lora": [{"id": N, "scale": 1.0}]`. A proxy that turns a model id into that field (one model id per adapter, the way vLLM's
+`--lora-modules` works) sits well behind this shim, but one llama-server rule matters: **when the adapter set on a slot differs
+from the previous request's, llama-server clears that slot's cache** (`launch_slot_with_task`, `lora_should_clear_cache`; only
+activated-LoRA adapters are exempt). A restore the shim performed a moment earlier is cleared with it, and the conversation
+re-prefills from scratch.
+
+So give each adapter's model id its own slot with `MODEL_SLOTS` (for example `MODEL_SLOTS=my-model-lora:2` on a three-slot
+server: slot 2 only ever runs that adapter, slots 0 and 1 only ever run the base). The adapter set on a slot then never changes,
+llama-server never clears it, and saved and restored states for both ids stay valid. Put the shim in front of the LoRA proxy,
+not behind it, so the shim sees the original model id: the key becomes `<lora id>__<chat id>` and the proxy forwards the shim's
+`id_slot` untouched (it must only set its own pin when `id_slot` is absent). A deployment of this shape, with measurements, is in
+[case-study-m1-ultra.md](case-study-m1-ultra.md).
+
 ## Flags that change the saved files
 
 Saved states are only valid for the configuration that wrote them.
@@ -29,6 +45,7 @@ Saved states are only valid for the configuration that wrote them.
 | Different `-c` or `-np` | Same. The per-slot context size and slot count are part of the stamp. |
 | Different `-ctk` / `-ctv` (KV cache type) | Not in the stamp, because llama-server does not report it in `/props`. llama-server rejects the restore because the stored tensor types do not match, and the shim deletes that file and re-prefills. One slow turn per chat, no corruption. Clear the directory first if you prefer. |
 | Adding or removing `--mmproj` | Not in the stamp. Text-only states restore fine either way. States that contain image chunks need the projector present. |
+| Adding or removing a `--lora` | Not in the stamp. The adapter list is part of the slot's state, so an existing file restores, and the first request then applies the LoRA rule above. |
 
 ## Flags that do not apply
 

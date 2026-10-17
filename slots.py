@@ -15,9 +15,9 @@ class Slots:
     def find(self, key):
         return next((i for i, s in self.t.items() if s["key"] == key), None)
 
-    def victim(self):
-        """Idle slot to take over: empty first, then non-persistent (tasks), then clean, then least recently used."""
-        idle = [i for i, s in self.t.items() if s["busy"] == 0]
+    def victim(self, allowed=None):
+        """Idle slot (among allowed, or any) to take over: empty first, then non-persistent (tasks), then clean, then LRU."""
+        idle = [i for i, s in self.t.items() if s["busy"] == 0 and (allowed is None or i in allowed)]
         if not idle:
             return None
         return min(idle, key=lambda i: (self.t[i]["key"] is not None, self.t[i]["persist"],

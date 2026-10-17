@@ -1,7 +1,9 @@
 # Future enhancements
 
-Recorded from the first deployment on 2026-10-17. None of these are implemented; the shim is deliberately being left
-unchanged while the Windows and Mac deployments are tested, so that what is observed can be attributed to what exists.
+Recorded from the first deployment on 2026-10-17. None of these are implemented. The one change since the first deployment is
+`MODEL_SLOTS` (2026-10-17, needed wherever a LoRA proxy sits behind the shim; off by default, so existing deployments are
+unchanged). Everything else is deliberately left as it is while the deployments are tested, so that what is observed can be
+attributed to what exists.
 
 ## Do not persist one-shot conversations
 

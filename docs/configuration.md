@@ -29,6 +29,7 @@ Put it on the SSD. Network shares work but make every save and restore a network
 | `CHAT_ID_HEADER` | `X-OpenWebUI-Chat-Id` | Request header carrying the conversation id. Any client can send it. |
 | `TASK_HEADER` | `X-OpenWebUI-Task` | Request header whose non-empty value marks a side task (title, tags, follow-ups). Task requests are pinned but never saved. |
 | `PERSIST_FALLBACK` | `true` | Save conversations that arrive without a chat id (keyed by a hash of system prompt + first user turn). `false` keeps them on the GPU only. |
+| `MODEL_SLOTS` | empty | `model:slot` pairs, comma separated. Requests for a listed model id are pinned only within its slot(s); every other model never uses those slots. List a model twice to give it two slots. For LoRA proxies that map model ids to adapters, see [llama-server.md](llama-server.md). The shim refuses to start if a listed slot does not exist or if every slot is reserved. |
 
 Both headers are matched case-insensitively. If the chat id header is absent, the shim also looks for `metadata.chat_id`
 and `metadata.task` in the JSON body, for clients that forward Open WebUI's metadata object.
