@@ -71,7 +71,9 @@ Wait `IDLE_SAVE_SECONDS` and watch the idle save fire; `--flush` and `--reconcil
   startup deletes.
 - `persist=False` conversations (tasks, temporary chats) are never written. The flag is checked in both save paths.
 - The stamp must change whenever a saved file could become invalid: model, context size per slot, slot count.
-- Reconcile must fail closed. Any Open WebUI answer other than 200 or 404 aborts the sweep without deleting.
+- Reconcile must fail closed. The key is verified against the chat list before any lookup, and any per-chat answer other
+  than 200, 401 or 404 aborts the sweep without deleting. Open WebUI reports a missing chat as 401, which is why the
+  canary exists: without it a revoked key would read as "every chat deleted".
 
 ## Extending
 

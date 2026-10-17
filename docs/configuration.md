@@ -48,7 +48,7 @@ and `metadata.task` in the JSON body, for clients that forward Open WebUI's meta
 | `MAX_BYTES` | `50G` | After age cleanup, least recently used files are deleted until the directory is under this. Accepts `K`, `M`, `G`, `T` suffixes or a plain byte count. |
 | `RECONCILE_INTERVAL_MINUTES` | `60` | How often the sweep runs inside the shim. `0` disables the timer; run `ssd_cache_shim.py --reconcile` from a scheduler instead. |
 | `OPENWEBUI_URL` | empty | Base URL of Open WebUI as seen from the shim's host, for example `http://localhost:3000`. |
-| `OPENWEBUI_API_KEY` | empty | API key whose user can read the chats. With both set, each Open WebUI-keyed file is checked with `GET /api/v1/chats/{id}` and deleted on 404. Without them, only age and size cleanup run. |
+| `OPENWEBUI_API_KEY` | empty | API key whose user can read the chats. With both set, each Open WebUI-keyed file is checked with `GET /api/v1/chats/{id}` and deleted when Open WebUI says the chat is not there (it answers 401 for that, or 404). The key is verified against the chat list first, so a bad key aborts the sweep instead of deleting everything. Use an admin key on a multi-user install: a non-admin key cannot see other users' chats, and their files would be treated as deleted. Without URL and key, only age and size cleanup run. |
 
 ## Logging
 

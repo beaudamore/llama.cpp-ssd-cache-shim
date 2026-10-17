@@ -39,10 +39,13 @@ headers.
 Settings > Account > API keys > Create. Put the key in `.env` as `OPENWEBUI_API_KEY`, and set `OPENWEBUI_URL` to Open
 WebUI's address as seen from the shim's host (`http://localhost:3000` for the default Docker port mapping).
 
-The sweep asks `GET /api/v1/chats/{id}` for each stored chat. The key's user has to be allowed to read the chat: on a
-single-user install any key works; on a multi-user install use an admin key and make sure admins may read other users'
-chats (`ENABLE_ADMIN_CHAT_ACCESS`, on by default). If the check returns anything other than 200 or 404, the sweep stops
-without deleting, so a wrong key costs nothing but a log line.
+The sweep first fetches the chat list as a canary; only a valid key gets a 200, and anything else aborts the sweep. Then
+it asks `GET /api/v1/chats/{id}` for each stored chat. Open WebUI answers 200 for a chat the key's user can read and
+401 for one that is missing or belongs to someone the user cannot see, so the key's user has to be allowed to read the
+chats: on a single-user install any key works; on a multi-user install use an admin key and make sure admins may read
+other users' chats (`ENABLE_ADMIN_CHAT_ACCESS`, on by default). With a non-admin key on a multi-user install, other
+users' files would be deleted as if their chats were gone; the cost is one re-prefill each, not data loss, but use an
+admin key. A JWT from a browser session works the same way but expires; the API key does not.
 
 ## What Open WebUI sends, and how the shim treats it
 
@@ -67,5 +70,5 @@ correct behaviour since the saved state belongs to the other model.
 
 ## Deleting chats
 
-Nothing happens at delete time. The next sweep (hourly by default) finds the 404 and removes the file. Deleting all chats
+Nothing happens at delete time. The next sweep (hourly by default) finds the chat gone and removes the file. Deleting all chats
 removes all of that user's files on the next sweep. Archiving a chat keeps its file, since the chat still exists.

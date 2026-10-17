@@ -9,7 +9,8 @@ file on SSD, restores it into the slot (action=restore) before forwarding the re
 a timer, so an eviction usually finds the file already current and costs no write.
 
 Cleanup is a periodic sweep (or `--reconcile` from a scheduled task): every file whose chat no longer exists in Open WebUI
-(GET /api/v1/chats/{id} -> 404) is deleted, then MAX_AGE_DAYS and MAX_BYTES are enforced LRU-first. Files are stamped
+(GET /api/v1/chats/{id} answers 401 or 404; the key is verified against the chat list first) is deleted, then
+MAX_AGE_DAYS and MAX_BYTES are enforced LRU-first. Files are stamped
 with the model path and context size reported by llama-server and dropped when either changes.
 
 llama-server must run with --slot-save-path pointing at the same directory as SLOT_SAVE_DIR. Everything the shim does

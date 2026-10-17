@@ -122,10 +122,12 @@ The directory therefore belongs to the shim. Do not point two shims, or a shim a
 `engine.reconcile()` runs every `RECONCILE_INTERVAL_MINUTES` in-process, on `POST /shim/reconcile`, and on
 `ssd_cache_shim.py --reconcile` (which calls the running shim, or sweeps the directory itself if the shim is down).
 
-1. If `OPENWEBUI_URL` and `OPENWEBUI_API_KEY` are set: for every file keyed by an Open WebUI chat id, `GET
-   /api/v1/chats/{id}`. A 404 deletes the file. A 200 keeps it. Anything else (401, 500, connection refused) raises and
-   the sweep stops without deleting, so an outage or a bad key never purges the cache. If the deleted conversation is
-   still on a GPU slot, that slot is marked non-persistent so it is never written back.
+1. If `OPENWEBUI_URL` and `OPENWEBUI_API_KEY` are set: first a canary, `GET /api/v1/chats/?page=1`, which answers 200
+   only to a valid key; anything else aborts the sweep. Then for every file keyed by an Open WebUI chat id, `GET
+   /api/v1/chats/{id}`. A 200 keeps the file. A 401 or 404 deletes it: Open WebUI answers 401, not 404, for a chat that
+   does not exist or that the key's user may not read, which is why the canary matters, since a bad key would also
+   answer 401 on every chat. Any other status or a connection failure raises and the sweep stops without deleting. If
+   the deleted conversation is still on a GPU slot, that slot is marked non-persistent so it is never written back.
 2. Files unused for more than `MAX_AGE_DAYS` are deleted. This is the only cleanup for hash-keyed files.
 3. Least recently used files are deleted until the total is under `MAX_BYTES`.
 

@@ -164,26 +164,39 @@ class Engine:
             except Exception as e:
                 log("warn", f"reconcile failed: {e}")
 
-    def _openwebui_chat_exists(self, chat_id):
+    def _openwebui_get(self, path):
         u = urllib.parse.urlsplit(self.cfg.openwebui_url)
         cls = http.client.HTTPSConnection if u.scheme == "https" else http.client.HTTPConnection
         conn = cls(u.hostname, u.port, timeout=30)
         try:
-            conn.request("GET", f"{u.path}/api/v1/chats/{urllib.parse.quote(chat_id)}",
+            conn.request("GET", f"{u.path}{path}",
                          headers={"Authorization": f"Bearer {self.cfg.openwebui_api_key}", "Accept": "application/json"})
             resp = conn.getresponse(); resp.read()
         finally:
             conn.close()
-        if resp.status == 200:
+        return resp.status
+
+    def _openwebui_key_valid(self):
+        """Canary before a sweep: the chat list answers 200 only to a valid key. A bad key answers 401 everywhere,
+        which would otherwise look like every chat had been deleted."""
+        return self._openwebui_get("/api/v1/chats/?page=1") == 200
+
+    def _openwebui_chat_exists(self, chat_id):
+        """Open WebUI answers 401 (not 404) for a chat that does not exist or that the key's user may not read; a
+        plain 404 only comes from a wrong URL. With the key verified by the canary, both mean the file can go."""
+        st = self._openwebui_get(f"/api/v1/chats/{urllib.parse.quote(chat_id)}")
+        if st == 200:
             return True
-        if resp.status == 404:
+        if st in (401, 404):
             return False
-        raise RuntimeError(f"Open WebUI returned {resp.status} for chat {chat_id}; not deleting")
+        raise RuntimeError(f"Open WebUI returned {st} for chat {chat_id}; not deleting")
 
     def reconcile(self):
         """Delete files for chats Open WebUI no longer has, then enforce age and size limits. Returns names removed."""
         removed = []
         if self.cfg.openwebui_url and self.cfg.openwebui_api_key:
+            if not self._openwebui_key_valid():
+                raise RuntimeError("Open WebUI rejected the API key (chat list did not return 200); not deleting")
             for name, chat_id in self.store.openwebui_entries():
                 if not self._openwebui_chat_exists(chat_id):
                     self.store.remove(name); removed.append(name)
