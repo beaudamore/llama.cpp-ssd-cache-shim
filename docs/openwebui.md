@@ -50,7 +50,7 @@ without deleting, so a wrong key costs nothing but a log line.
 | --- | --- | --- | --- |
 | A normal turn | the chat id | empty | pinned to the chat's slot; saved to SSD |
 | Title, tags, follow-up, query generation after a reply | the chat id | task name | pinned to an idle slot (preferring one not holding a conversation); never saved |
-| A subagent or internal child chat | the child chat's own id | empty | its own slot and file, independent of the parent |
+| A subagent or internal child chat | the child chat's own id | empty | its own slot and file, independent of the parent. These chats are never revisited, so the file is wasted space until the age-out; see [future.md](future.md) for the planned fix |
 | Temporary chat (not saved by Open WebUI) | `temporary:...` | empty | pinned; never saved |
 | Channel message | `channel:...` | empty | pinned; never saved |
 | A chat whose task model is a different server | goes to that server | | the shim never sees it |

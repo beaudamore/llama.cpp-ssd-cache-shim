@@ -72,6 +72,34 @@ Total SSD use after four conversations: 1.9 GB.
   The shim's victim order (empty, then task, then clean, then least recently used) keeps the churn from ever landing on
   the active chat, but a third slot would remove it entirely. On 4 GB of VRAM that slot is not available.
 
+## A subagent run
+
+Later the same day, with Open WebUI's subagents enabled, one chat asked the lead model to delegate three summaries and
+compare them. The shim's slot table was polled every two seconds during the run.
+
+| Time | Event |
+| --- | --- |
+| 16:09 | lead chat (bf53faaf) generating in slot 0; its title task in slot 1 |
+| 16:11 | lead finishes its first turn; subagent 1 (226d6ef8) takes slot 1 |
+| 16:14 | lead idle-saved to SSD (388 MB) |
+| 16:17 | subagent 2 (6c62cef8) takes slot 0 from the lead; no save needed, the lead was clean |
+| 16:20 | subagent 1 finishes and is idle-saved (381 MB) |
+| 16:23 | subagent 3 (b1b8d3f6) takes slot 1 |
+| 16:25 | subagent 2 idle-saved (379 MB) |
+| 16:27:07 | lead **restored from SSD** into slot 0 to write the comparison |
+| 16:29 | subagent 3 idle-saved (384 MB) |
+| 16:30 | lead done; follow-up and tags tasks run in slot 1 |
+
+Observations:
+
+- The lead model called `delegate_task` one at a time, so at most one subagent ran beside the lead and the two slots
+  were never oversubscribed. Each subagent made several model calls during its run, its own tool loop, and stayed on its
+  slot for all of them.
+- The lead's eviction cost nothing because the idle save had already run, and its return was a restore of 11,268 tokens.
+  This is the shim doing what it is for.
+- The three subagent files, 1.1 GB together, will never be read. Nothing ever sends another message to a finished
+  subagent chat. This is the waste described in [future.md](future.md).
+
 ## Changes made because of this deployment
 
 - `--cache-ram 0` on llama-server. The host-RAM prompt cache was duplicating every save the shim made, and its one

@@ -62,6 +62,7 @@ The same three actions are available over HTTP as `GET /shim/status`, `POST /shi
 | [docs/development.md](docs/development.md) | Code layout, testing against a scratch llama-server, extending the shim |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Symptoms, causes, fixes |
 | [docs/case-study-t600.md](docs/case-study-t600.md) | First deployment: a 9B model on a 4 GB laptop GPU, with the real file sizes and restore log |
+| [docs/future.md](docs/future.md) | Findings not yet acted on: one-shot subagent chats on SSD, Hermes sessions, metrics |
 
 ## Requirements
 
