@@ -84,9 +84,16 @@ class Handler(BaseHTTPRequestHandler):
             if slot is not None:
                 eng.release(slot, ok)
 
+class Server(ThreadingHTTPServer):
+    # HTTPServer defaults allow_reuse_address to True (SO_REUSEADDR). On Windows that lets a second shim bind the same
+    # port while the first is still listening, and connections then go to either one. Off, a second start fails at bind
+    # (WinError 10048 / EADDRINUSE) instead of silently overlapping.
+    allow_reuse_address = False
+    allow_reuse_port = False
+
 def make_server(cfg, engine):
     Handler.engine = engine
-    srv = ThreadingHTTPServer((cfg.listen_host, cfg.listen_port), Handler)
+    srv = Server((cfg.listen_host, cfg.listen_port), Handler)
     srv.daemon_threads = True
     return srv
 
