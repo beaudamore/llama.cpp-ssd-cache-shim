@@ -1,6 +1,6 @@
 # Open WebUI setup
 
-Tested against Open WebUI 0.12.x. The shim works with Open WebUI out of the box through the hash fallback, but two
+Tested against Open WebUI 0.12.x and 0.13.0. The shim works with Open WebUI out of the box through the hash fallback, but two
 headers make it exact: every chat gets its own key, and the side tasks Open WebUI fires after each reply stay off the SSD.
 
 ## 1. Point the connection at the shim
@@ -57,10 +57,30 @@ admin key. A JWT from a browser session works the same way but expires; the API 
 | Temporary chat (not saved by Open WebUI) | `temporary:...` | empty | pinned; never saved |
 | Channel message | `channel:...` | empty | pinned; never saved |
 | A chat whose task model is a different server | goes to that server | | the shim never sees it |
+| A filter or other plugin calling the model from the server side (`generate_chat_completion`) during a chat | the chat id (inherited) | empty unless the plugin sets `metadata.task` | **without a task marker: treated as the chat's own turn**, see below |
 
 If your task model is the same llama-server, each reply is followed by two or three task calls. With two slots they take
 whichever slot is not the active chat and evict whatever was there (saving it first if it was unsaved). With three or
 more slots the churn is invisible.
+
+### Plugins that call the model from the server side (found 2026-11-04)
+
+Open WebUI merges the chat's `request.state.metadata` into every `generate_chat_completion` call made with that chat's
+request object (`utils/chat.py`, since 0.5.12; checked on 0.13.0). So a filter's background call, for example a memory
+extractor, reaches the shim with the chat's `{{CHAT_ID}}` and an empty `{{TASK}}`. The shim keys it as the chat itself,
+runs the plugin's prompt in the chat's slot, and the chat's cached prompt is gone: measured with the user_memory filter,
+a ~4.5k-token extraction prompt shared 3 tokens with the 25k-token chat, so the next turn re-prefilled 25,027 tokens
+(134.9 s before the first token; a hit on the same chat costs ~9 s). The idle saver then wrote the plugin's state to SSD
+under the chat's filename, so the SSD copy was lost too.
+
+The fix belongs in the plugin: set `metadata.task` to a non-empty name on its payload. The chat's metadata has no `task`
+key, so the name survives the merge, `{{TASK}}` renders it, and the shim keys the call `task:<name>:<chat id>` on an idle
+slot, never saved, exactly like title and tag generation. The user_memory filter does this since v7.4 (valve
+`extraction_task_name`, default `memory_extraction`). Use a fixed task name, not a random one: while its key is resident
+the call reuses that slot (only the shared prefix, the plugin's system prompt, is reused; the rest is recomputed), whereas
+a fresh key every call always needs a victim slot. If no empty or task slot is idle, that victim can be the chat's slot,
+which then costs the chat a save and a restore on its next turn instead of a cache hit. The shim cannot tell these calls
+apart on its own: everything it reads (headers, model) is identical to a real turn.
 
 ## LoRA model ids
 
